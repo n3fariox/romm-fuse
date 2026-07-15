@@ -348,7 +348,6 @@ pub fn mount(args: crate::config::ResolvedConfig) -> Result<()> {
     let mut options = vec![
         MountOption::RO,
         MountOption::FSName("romm-fuse".to_string()),
-        MountOption::AutoUnmount,
     ];
 
     if args.allow_other {
