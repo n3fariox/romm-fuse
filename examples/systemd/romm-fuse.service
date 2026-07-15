@@ -4,17 +4,17 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=notify
-ExecStart=/usr/local/bin/romm-fuse /media/fat/games --profile mister
-ExecStop=/bin/fusermount3 -u /media/fat/games
+Type=simple
+ExecStart=/usr/local/bin/romm-fuse /media/fat/games --profile mister --foreground
+ExecStop=/usr/bin/fusermount3 -u /media/fat/games
 Restart=on-failure
 RestartSec=10
 
-# Security hardening
-NoNewPrivileges=yes
-ProtectSystem=strict
-ReadWritePaths=/tmp/romm-fuse-cache
-ProtectHome=yes
+# Security hardening (uncomment to taste)
+# NoNewPrivileges=yes
+# ProtectSystem=full
+# ProtectHome=yes
+# ReadWritePaths=/media/fat/games /tmp/romm-fuse-cache
 
 # Environment (alternative to config file)
 # Environment=ROMM_URL=http://192.168.1.100:3000
