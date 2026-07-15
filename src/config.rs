@@ -46,6 +46,10 @@ pub struct Args {
     #[arg(long, env = "ROMM_CHUNK_SIZE", default_value_t = 262144)]
     pub chunk_size: u64,
 
+    /// Test RomM connection and exit
+    #[arg(long)]
+    pub test: bool,
+
     /// Don't daemonize, stay in foreground
     #[arg(long)]
     pub foreground: bool,
