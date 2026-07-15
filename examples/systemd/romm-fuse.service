@@ -5,10 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStartPre=/bin/mkdir -p /media/fat/games
-ExecStartPre=/bin/chmod 755 /media/fat/games
-ExecStart=/usr/local/bin/romm-fuse /media/fat/games --profile mister --foreground --allow-other
-ExecStop=/usr/bin/fusermount3 -u /media/fat/games
+ExecStartPre=/bin/mkdir -p /media/fat
+ExecStartPre=/bin/chmod 755 /media/fat
+ExecStart=/usr/local/bin/romm-fuse /media/fat --profile mister --foreground --allow-other
+ExecStop=/usr/bin/fusermount3 -u /media/fat
 Restart=on-failure
 RestartSec=10
 

@@ -9,7 +9,7 @@ use fuser::{
     AccessFlags, Errno, FileAttr, FileType, Filesystem, FopenFlags, Generation, INodeNo,
     MountOption, OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
     ReplyOpen, ReplyStatfs, Request, FileHandle,
-    Config,
+    Config, SessionACL,
 };
 use log::{debug, info, warn};
 
@@ -386,17 +386,17 @@ pub fn mount(args: crate::config::ResolvedConfig) -> Result<()> {
 
     let fs = RommFs::new(client, cache, &profile, ttl)?;
 
-    let mut options = vec![
+    let options = vec![
         MountOption::RO,
         MountOption::FSName("romm-fuse".to_string()),
     ];
 
-    if args.allow_other {
-        options.push(MountOption::CUSTOM("allow_other".to_string()));
-    }
-
     let mut config = Config::default();
     config.mount_options = options;
+
+    if args.allow_other {
+        config.acl = SessionACL::All;
+    }
 
     let mountpoint = args.mountpoint.clone().ok_or_else(|| anyhow::anyhow!("mountpoint is required"))?;
 
