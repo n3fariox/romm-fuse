@@ -8,22 +8,103 @@ plain directory tree. Comes with built-in mapping profiles for common systems
 for any directory-based frontend. Runs directly on the target device's Linux
 environment (MiSTer Debian, Raspberry Pi, etc.).
 
+## Quick Start
+
+```bash
+# Install dependencies (Debian/Ubuntu)
+sudo apt install fuse3 libfuse3-dev
+
+# Build
+cargo build --release
+
+# Run (interactive — will prompt for URL and token)
+./target/release/romm-fuse /mnt/games
+
+# Or with CLI flags
+./target/release/romm-fuse /mnt/games \
+  --romm-url http://192.168.1.100:3000 \
+  --token rmm_your_token_here \
+  --profile mister
+```
+
+## Configuration
+
+Credentials are resolved with this priority chain (highest first):
+
+1. **CLI flags** — `--romm-url`, `--token`, `--profile`
+2. **Environment variables** — `ROMM_URL`, `ROMM_TOKEN`, `ROMM_PROFILE`
+3. **Config file** — `~/.config/romm-fuse/config.toml` or `/etc/romm-fuse/config.toml`
+4. **Interactive prompt** — prompts on stdin if nothing else is set
+
+### Config file (`~/.config/romm-fuse/config.toml`)
+
+```toml
+romm_url = "http://192.168.1.100:3000"
+token = "rmm_your_token_here"
+profile = "mister"
+
+# Optional overrides
+# cache_dir = "/var/cache/romm-fuse"
+# ttl = 300
+# allow_other = false
+```
+
+### Environment variables
+
+```bash
+export ROMM_URL="http://192.168.1.100:3000"
+export ROMM_TOKEN="rmm_your_token_here"
+export ROMM_PROFILE="mister"
+```
+
+## Installation
+
+### Manual
+
+```bash
+cargo build --release
+sudo install -m 755 target/release/romm-fuse /usr/local/bin/romm-fuse
+sudo mkdir -p /etc/romm-fuse
+sudo cp examples/config.toml /etc/romm-fuse/config.toml
+# Edit config.toml with your details
+```
+
+### Using install script
+
+```bash
+./install.sh
+```
+
+### Systemd service
+
+```bash
+sudo cp examples/systemd/romm-fuse.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now romm-fuse
+```
+
+### fstab (for boot-time mount)
+
+```
+/usr/local/bin/romm-fuse /media/fat/games fuse.ro,_netdev,auto,x-systemd.requires=network-online.target 0 0
+```
+
 ## Architecture
 
 ```
 romm-fuse
 ├── main.rs              # CLI args + mount
+├── lib.rs               # Library re-exports for integration tests
 ├── api/
 │   ├── client.rs        # reqwest HTTP client for RomM API (bearer auth)
 │   └── types.rs         # Serde structs for Platform/Rom/File schemas
 ├── fs/
 │   ├── romm_fs.rs       # fuser::Filesystem impl (the FUSE bridge)
-│   ├── inodes.rs        # inode allocator & path<->inode mapping
-│   ├── cache.rs         # local disk cache for downloaded ROMs
-│   └── tree.rs          # in-memory directory tree (platforms→ROMs→files)
-├── config.rs            # CLI args + profile loading
+│   ├── tree.rs          # in-memory directory tree (platforms→ROMs→files)
+│   └── cache.rs         # local disk cache for downloaded ROMs
+├── config.rs            # CLI args, env vars, config file resolution
 └── profiles/
-    ├── mod.rs           # Profile registry + built-in profile loader
+    ├── builtins.rs      # Built-in profile loader
     ├── mister.toml      # MiSTer FPGA mapping
     ├── retroarch.toml   # RetroArch mapping
     └── emulationstation.toml
@@ -31,8 +112,7 @@ romm-fuse
 
 ## Virtual Directory Layout
 
-The directory layout depends on which **mapping profile** is active. Different
-frontends expect different structures:
+The directory layout depends on which **mapping profile** is active:
 
 ```
 # --profile mister
@@ -51,14 +131,6 @@ frontends expect different structures:
 | `retroarch` | `nes/rom.nes` | RetroArch content folder convention |
 | `emulationstation` | `nes/rom.nes` | ES-style short names |
 | `custom` | user-defined | Any arbitrary mapping via TOML |
-
-## Key Design Decisions
-
-1. **Read-only now, extensible later** — tree/inode system designed so firmware/saves can layer on without restructuring
-2. **Local cache, eventual chunk streaming** — ROMs download on first `open()` to `<cache-dir>/<sha256>`. Future: HTTP Range-based chunked reads for large ISOs (PSX/Saturn)
-3. **Profile-based platform mapping** — Built-in profiles for MiSTer, RetroArch, EmulationStation, plus custom TOML profiles. A profile maps RomM platform slugs to directory names and can customize path prefixes, file filtering, and naming rules.
-4. **In-memory tree + TTL refresh** — platforms fetched on mount, ROMs listed per-platform with pagination, tree refreshed after configurable TTL (default 300s)
-5. **Multi-disc as subfolders** — ROMs with multiple files become subdirectories (convention for CD-based games)
 
 ## FUSE Operations
 
@@ -79,13 +151,16 @@ Write ops (`write`, `mkdir`, `unlink`, etc.) return `EROFS`.
 romm-fuse [OPTIONS] <MOUNTPOINT>
 
 Options:
-  --romm-url <URL>          RomM instance URL (e.g. http://192.168.1.100:3000)
-  --token <TOKEN>           Bearer token for RomM API (rmm_...)
-  --profile <NAME>          Built-in profile: mister, retroarch, emulationstation
+  --romm-url <URL>          RomM instance URL (env: ROMM_URL)
+  --token <TOKEN>           Bearer token for RomM API (env: ROMM_TOKEN)
+  --profile <NAME>          Built-in profile: mister, retroarch, emulationstation (env: ROMM_PROFILE)
   --config <FILE>           Custom profile TOML (use instead of --profile)
+  --config-file <FILE>      Config file path (default: ~/.config/romm-fuse/config.toml)
   --cache-dir <DIR>         Local cache directory (default: /tmp/romm-fuse-cache)
+  --chunk-size <BYTES>      Chunk size for HTTP Range reads (default: 262144 = 256KB)
   --allow-other             Pass allow_other to FUSE mount
   --ttl <SECONDS>           How long to cache API responses (default: 300)
+  --foreground              Don't daemonize, stay in foreground
 ```
 
 ## Profile Format (TOML)
@@ -96,27 +171,14 @@ name = "mister"
 prefix = "games"           # optional path prefix prepended to all platforms
 
 [platforms]
-# RomM slug = MiSTer core folder name
+# RomM slug = directory folder name
 "nes"        = "NES"
 "snes"       = "SNES"
 "genesis"    = "Genesis"
-"mega-drive" = "MegaDrive"
 "game-boy"   = "GAMEBOY"
 "gba"        = "GBA"
-"master-system" = "SMS"
-"mega-cd"    = "MegaCD"
-"n64"        = "N64"
 "playstation" = "PSX"
-"saturn"     = "Saturn"
-"tgfx16"     = "TGFX16"
-"tgfx16-cd"  = "TGFX16-CD"
-"neo-geo"    = "NeoGeo"
-"atari-2600" = "ATARI2600"
-"atari-5200" = "ATARI5200"
-"atari-7800" = "ATARI7800"
-"game-gear"  = "SMS"
-"s32x"       = "S32X"
-"wonderswan" = "WonderSwan"
+# ... any RomM platform slug
 ```
 
 Platforms not listed in the mapping are skipped (not exposed in the filesystem).
@@ -125,29 +187,33 @@ Platforms not listed in the mapping are skipped (not exposed in the filesystem).
 
 - **`fuser` 0.17** — FUSE impl (sync, well-tested)
 - **`reqwest` 0.12** (blocking + json) — RomM API calls
-- **`clap` 4** — CLI parsing
+- **`clap` 4** (with `env` feature) — CLI parsing + env var support
 - **`toml` 0.8** — profile config
 - **`serde`/`serde_json`** — API response deserialization
 - **`sha2`** — cache key hashing
+- **`atty`** — terminal detection for interactive prompts
 
 ## Roadmap
 
-### v0.1 — Minimal Working FS
+### v0.1 — Minimal Working FS ✓
 
-- [ ] Project skeleton (`cargo init`, deps, directory structure, clap CLI)
-- [ ] RomM API client — types.rs (Platform, SimpleRom, RomFile schemas), client.rs (list_platforms, list_roms with pagination, download_rom)
-- [ ] Profile system — built-in mister/retroarch/emulationstation profiles, custom TOML loader
-- [ ] Tree + inodes — build in-memory tree from API, allocate inodes, path lookup
-- [ ] ROM cache — disk-backed cache with SHA256 keys, download-on-demand
-- [ ] FUSE impl — wire everything into `fuser::Filesystem` trait
-- [ ] Testing — unit tests + integration test (mount, ls, cat a ROM)
+- [x] Project skeleton (`cargo init`, deps, directory structure, clap CLI)
+- [x] RomM API client — types.rs (Platform, SimpleRom, RomFile schemas), client.rs
+- [x] Profile system — built-in mister/retroarch/emulationstation profiles, custom TOML loader
+- [x] Tree + inodes — build in-memory tree from API, allocate inodes, path lookup
+- [x] ROM cache — disk-backed cache with SHA256 keys, download-on-demand
+- [x] FUSE impl — wire everything into `fuser::Filesystem` trait
+- [x] Config system — CLI flags > env vars > config file > interactive prompt
+- [x] Systemd service file + install script
+- [x] Testing — 6 integration tests passing
 
-### v0.2 — Chunk-Based Streaming
+### v0.2 — Chunk-Based Streaming (in progress)
 
-- [ ] HTTP Range support for partial reads (fetch only requested byte ranges)
-- [ ] Chunked cache with LRU eviction for large ISOs (PSX/Saturn/SegaCD)
-- [ ] Configurable chunk size (default 256KB)
-- [ ] Performance tuning for sequential reads (read-ahead)
+- [x] HTTP Range support for partial reads (`download_range()` in client)
+- [x] Chunked cache with LRU eviction for large ISOs
+- [x] Configurable chunk size (default 256KB, `--chunk-size` flag)
+- [x] `open()` no longer blocks on full download
+- [ ] Read-ahead / sequential read optimization
 
 ### v0.3 — Firmware Support
 
@@ -165,6 +231,4 @@ Platforms not listed in the mapping are skipped (not exposed in the filesystem).
 
 - [ ] Graceful handling of API downtime (serve from cache only)
 - [ ] Background refresh without blocking FUSE operations
-- [ ] Systemd service file
-- [ ] Installation script for common platforms (MiSTer, RPi, etc.)
 - [ ] Man page / usage docs
