@@ -1,0 +1,21 @@
+# romm-fuse configuration file
+# Place at ~/.config/romm-fuse/config.toml or /etc/romm-fuse/config.toml
+
+romm_url = "http://192.168.1.100:3000"
+token = "rmm_your_token_here"
+
+# Profile: mister, retroarch, emulationstation, or path to custom TOML
+profile = "mister"
+
+# Cache directory (default: /tmp/romm-fuse-cache)
+# cache_dir = "/var/cache/romm-fuse"
+
+# Cache TTL in seconds (default: 300)
+# ttl = 300
+
+# Chunk size for HTTP Range reads in bytes (default: 262144 = 256KB)
+# Smaller values reduce memory usage; larger values reduce HTTP requests.
+# chunk_size = 262144
+
+# Allow other users to access the mount (requires /etc/fuse.conf user_allow_other)
+# allow_other = false
