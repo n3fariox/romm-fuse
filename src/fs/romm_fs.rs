@@ -49,14 +49,22 @@ impl RommFs {
             if let Some(dir_name) = profile.platforms.get(&platform.slug) {
                 let prefix = profile.profile.prefix.as_deref().unwrap_or("");
 
-                let full_name = if prefix.is_empty() {
-                    dir_name.clone()
+                let parent_ino = if prefix.is_empty() {
+                    ROOT_INO
                 } else {
-                    format!("{prefix}/{dir_name}")
+                    // Ensure prefix directory exists (e.g. "games")
+                    if let Some(existing) = tree.lookup(ROOT_INO, prefix) {
+                        existing
+                    } else {
+                        let prefix_ino = tree.allocate_inode();
+                        tree.add_dir(ROOT_INO, prefix.to_string(), prefix_ino);
+                        info!("created prefix directory '{}'", prefix);
+                        prefix_ino
+                    }
                 };
 
                 let dir_ino = tree.allocate_inode();
-                tree.add_dir(ROOT_INO, full_name, dir_ino);
+                tree.add_dir(parent_ino, dir_name.clone(), dir_ino);
                 platform_dirs.insert(platform.slug.clone(), dir_ino);
 
                 info!(
@@ -208,10 +216,9 @@ impl Filesystem for RommFs {
         }
 
         for (name, child_ino) in &children {
-            let ft = if ino.0 == ROOT_INO {
-                FileType::Directory
-            } else {
-                FileType::RegularFile
+            let ft = match tree.get(*child_ino) {
+                Some(TreeNode::Dir { .. }) => FileType::Directory,
+                _ => FileType::RegularFile,
             };
             entries.push((*child_ino, ft, name.clone()));
         }
