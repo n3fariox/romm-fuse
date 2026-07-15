@@ -14,17 +14,28 @@ pub struct Platform {
 #[derive(Debug, Deserialize)]
 pub struct SimpleRom {
     pub id: u64,
+    #[serde(default)]
     pub name: Option<String>,
+    #[serde(default)]
     pub slug: Option<String>,
     pub fs_name: String,
+    #[serde(default)]
     pub fs_name_no_ext: String,
+    #[serde(default)]
     pub fs_extension: String,
     pub fs_size_bytes: u64,
     pub platform_id: u64,
+    #[serde(default)]
     pub platform_slug: String,
+    #[serde(default)]
     pub platform_fs_slug: String,
+    #[serde(default)]
+    pub is_top_level: bool,
+    #[serde(default)]
     pub has_simple_single_file: bool,
+    #[serde(default)]
     pub has_nested_single_file: bool,
+    #[serde(default)]
     pub has_multiple_files: bool,
     #[serde(default)]
     pub files: Vec<RomFile>,
@@ -38,8 +49,11 @@ pub struct RomFile {
     pub id: u64,
     pub rom_id: u64,
     pub file_name: String,
+    #[serde(default)]
     pub file_path: String,
+    #[serde(default)]
     pub file_size_bytes: u64,
+    #[serde(default)]
     pub is_top_level: bool,
 }
 
@@ -48,6 +62,8 @@ pub struct RomFile {
 pub struct Page<T> {
     pub items: Vec<T>,
     pub total: u64,
+    #[serde(default)]
     pub limit: u64,
+    #[serde(default)]
     pub offset: u64,
 }

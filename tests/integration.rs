@@ -53,6 +53,7 @@ fn make_rom(id: u64, name: &str, platform_slug: &str, multi: bool) -> SimpleRom 
         platform_id: 1,
         platform_slug: platform_slug.to_string(),
         platform_fs_slug: platform_slug.to_string(),
+        is_top_level: true,
         has_simple_single_file: !multi,
         has_nested_single_file: false,
         has_multiple_files: multi,
