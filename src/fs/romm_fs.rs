@@ -358,8 +358,10 @@ pub fn mount(args: crate::config::ResolvedConfig) -> Result<()> {
     let mut config = Config::default();
     config.mount_options = options;
 
-    info!("mounting at {}", args.mountpoint.display());
-    fuser::mount2(fs, &args.mountpoint, &config)?;
+    let mountpoint = args.mountpoint.clone().ok_or_else(|| anyhow::anyhow!("mountpoint is required"))?;
+
+    info!("mounting at {}", mountpoint.display());
+    fuser::mount2(fs, &mountpoint, &config)?;
 
     Ok(())
 }

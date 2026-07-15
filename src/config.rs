@@ -132,33 +132,39 @@ pub struct ResolvedConfig {
     pub ttl: u64,
     pub chunk_size: u64,
     pub foreground: bool,
-    pub mountpoint: PathBuf,
+    pub mountpoint: Option<PathBuf>,
 }
 
 impl ResolvedConfig {
     pub fn resolve(args: &Args) -> Result<Self> {
         let config_file = ConfigFile::load(args.config_file.as_deref())?;
 
-        // Prompt for missing values interactively
         let romm_url = args.romm_url.clone()
             .or(config_file.romm_url)
-            .or_else(|| prompt("RomM URL (e.g. http://192.168.1.100:3000): "));
+            .or_else(|| {
+                if args.test { None } else { prompt("RomM URL (e.g. http://192.168.1.100:3000): ") }
+            });
 
         let token = args.token.clone()
             .or(config_file.token)
-            .or_else(|| prompt("API Token (rmm_...): "));
+            .or_else(|| {
+                if args.test { None } else { prompt("API Token (rmm_...): ") }
+            });
 
         let profile = args.profile.clone()
             .or(config_file.profile)
             .unwrap_or_else(|| "mister".to_string());
 
-        let mountpoint = args.mountpoint.clone()
-            .ok_or_else(|| anyhow::anyhow!("mountpoint is required"))?;
+        let mountpoint = args.mountpoint.clone();
 
         let romm_url = romm_url
             .ok_or_else(|| anyhow::anyhow!("RomM URL is required (--romm-url, ROMM_URL, or config file)"))?;
         let token = token
             .ok_or_else(|| anyhow::anyhow!("API token is required (--token, ROMM_TOKEN, or config file)"))?;
+
+        if !args.test && mountpoint.is_none() {
+            anyhow::bail!("mountpoint is required");
+        }
 
         Ok(ResolvedConfig {
             romm_url,

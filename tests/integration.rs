@@ -127,7 +127,7 @@ fn test_unmapped_platform_ignored() {
 #[test]
 fn test_profile_loading() {
     let args = ResolvedConfig {
-        mountpoint: PathBuf::from("/tmp/test"),
+        mountpoint: Some(PathBuf::from("/tmp/test")),
         romm_url: "http://localhost:3000".to_string(),
         token: "test".to_string(),
         profile: "mister".to_string(),

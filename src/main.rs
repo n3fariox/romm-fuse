@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     info!("Profile: {}", resolved.profile);
     info!("Cache dir: {}", resolved.cache_dir.display());
 
-    let mountpoint = resolved.mountpoint.clone();
+    let mountpoint = resolved.mountpoint.clone().unwrap();
 
     fs::mount(resolved)?;
 
