@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::Result;
 use fuser::{
-    Errno, FileAttr, FileType, Filesystem, FopenFlags, Generation, INodeNo,
-    MountOption, OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry,
+    AccessFlags, Errno, FileAttr, FileType, Filesystem, FopenFlags, Generation, INodeNo,
+    MountOption, OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
     ReplyOpen, ReplyStatfs, Request, FileHandle,
     Config,
 };
@@ -230,6 +230,40 @@ impl Filesystem for RommFs {
             }
         }
         reply.ok();
+    }
+
+    fn opendir(&self, _req: &Request, ino: INodeNo, _flags: OpenFlags, reply: ReplyOpen) {
+        let tree = match self.tree.read() {
+            Ok(t) => t,
+            Err(_) => {
+                reply.error(Errno::EIO);
+                return;
+            }
+        };
+
+        match tree.get(ino.0) {
+            Some(TreeNode::Dir { .. }) => {
+                reply.opened(FileHandle(ino.0), FopenFlags::empty());
+            }
+            _ => {
+                reply.error(Errno::ENOTDIR);
+            }
+        }
+    }
+
+    fn access(&self, _req: &Request, ino: INodeNo, _mask: AccessFlags, reply: ReplyEmpty) {
+        let tree = match self.tree.read() {
+            Ok(t) => t,
+            Err(_) => {
+                reply.error(Errno::EIO);
+                return;
+            }
+        };
+
+        match tree.get(ino.0) {
+            Some(_) => reply.ok(),
+            None => reply.error(Errno::ENOENT),
+        }
     }
 
     fn open(&self, _req: &Request, ino: INodeNo, _flags: OpenFlags, reply: ReplyOpen) {
