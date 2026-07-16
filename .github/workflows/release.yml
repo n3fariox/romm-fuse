@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+env:
+  ZIG_VERSION: "0.15.2"
+
 permissions:
   contents: write
 
@@ -15,7 +18,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-linux-musl
             rust_target: x86_64-unknown-linux-musl
           - target: armv7-linux-musleabihf
             rust_target: armv7-unknown-linux-musleabihf
@@ -27,12 +30,21 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      - name: Install zig
+        run: |
+          ZIG_URL="https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-linux-${{ env.ZIG_VERSION }}.tar.xz"
+          curl -fsSL "$ZIG_URL" | tar -xJ -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/zig-x86_64-linux-${{ env.ZIG_VERSION }}" >> "$GITHUB_PATH"
+
+      - name: Install cargo-zigbuild
+        run: cargo install cargo-zigbuild
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.rust_target }}
+        run: cargo zigbuild --release --target ${{ matrix.rust_target }}
 
       - name: Package
         shell: bash

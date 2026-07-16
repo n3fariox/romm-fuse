@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name != 'main' && github.ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  ZIG_VERSION: "0.15.2"
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -42,12 +45,21 @@ jobs:
         with:
           targets: armv7-unknown-linux-musleabihf
 
+      - name: Install zig
+        run: |
+          ZIG_URL="https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-linux-${{ env.ZIG_VERSION }}.tar.xz"
+          curl -fsSL "$ZIG_URL" | tar -xJ -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/zig-x86_64-linux-${{ env.ZIG_VERSION }}" >> "$GITHUB_PATH"
+
+      - name: Install cargo-zigbuild
+        run: cargo install cargo-zigbuild
+
       - uses: Swatinem/rust-cache@v2
         with:
           key: armv7
 
       - name: Build
-        run: cargo build --release --target armv7-unknown-linux-musleabihf
+        run: cargo zigbuild --release --target armv7-unknown-linux-musleabihf
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
