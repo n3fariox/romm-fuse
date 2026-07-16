@@ -6,7 +6,7 @@ description = "FUSE filesystem bridging RomM to directory-based emulation system
 
 [dependencies]
 fuser = "0.17"
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
