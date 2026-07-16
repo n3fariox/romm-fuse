@@ -50,7 +50,10 @@ fn test_connection(resolved: &config::ResolvedConfig) -> Result<()> {
     };
     println!("Found {} platforms", platforms.len());
     for p in &platforms {
-        println!("  {:>4}  {:<20}  {}  ({} ROMs)", p.id, p.slug, p.name, p.rom_count);
+        println!(
+            "  {:>4}  {:<20}  {}  ({} ROMs)",
+            p.id, p.slug, p.name, p.rom_count
+        );
     }
     println!();
 
@@ -77,12 +80,16 @@ fn test_connection(resolved: &config::ResolvedConfig) -> Result<()> {
         let files = if rom.files.is_empty() {
             "no files".to_string()
         } else {
-            rom.files.iter()
+            rom.files
+                .iter()
                 .map(|f| f.file_name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ")
         };
-        println!("  {:>4}  {:<30}  {} bytes  [{files}]", rom.id, rom.fs_name, rom.fs_size_bytes);
+        println!(
+            "  {:>4}  {:<30}  {} bytes  [{files}]",
+            rom.id, rom.fs_name, rom.fs_size_bytes
+        );
     }
     if roms.len() > 10 {
         println!("  ... and {} more", roms.len() - 10);

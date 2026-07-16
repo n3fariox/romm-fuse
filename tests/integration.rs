@@ -70,10 +70,7 @@ fn test_single_file_rom() {
     tree.add_dir(root, "NES".to_string(), nes_dir);
 
     let roms = vec![make_rom(1, "Super Mario Bros. (USA).nes", "nes", false)];
-    tree.build_from_roms(
-        &HashMap::from([("nes".to_string(), nes_dir)]),
-        &roms,
-    );
+    tree.build_from_roms(&HashMap::from([("nes".to_string(), nes_dir)]), &roms);
 
     let children = tree.children(root).unwrap();
     assert_eq!(children.len(), 1);
@@ -162,10 +159,7 @@ fn test_priority_chain() {
     std::env::set_var("ROMM_URL", "http://env-test:3000");
     std::env::set_var("ROMM_TOKEN", "env-token");
 
-    let args = Args::parse_from([
-        "romm-fuse",
-        "/tmp/test",
-    ]);
+    let args = Args::parse_from(["romm-fuse", "/tmp/test"]);
     let resolved = ResolvedConfig::resolve(&args).unwrap();
     assert_eq!(resolved.romm_url, "http://env-test:3000");
     assert_eq!(resolved.token, "env-token");
@@ -175,7 +169,8 @@ fn test_priority_chain() {
     let args = Args::parse_from([
         "romm-fuse",
         "/tmp/test",
-        "--romm-url", "http://cli-override:3000",
+        "--romm-url",
+        "http://cli-override:3000",
     ]);
     let resolved = ResolvedConfig::resolve(&args).unwrap();
     assert_eq!(resolved.romm_url, "http://cli-override:3000");

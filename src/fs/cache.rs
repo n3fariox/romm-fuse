@@ -158,7 +158,7 @@ impl Cache {
 
     #[allow(dead_code)]
     pub fn chunk_count(&self, file_size: u64) -> u64 {
-        (file_size + self.chunk_size - 1) / self.chunk_size
+        file_size.div_ceil(self.chunk_size)
     }
 
     pub fn read_range(
@@ -183,8 +183,10 @@ impl Cache {
 
         for chunk_idx in start_chunk..=end_chunk {
             let chunk_start = chunk_idx * self.chunk_size;
-            let chunk_end_inclusive =
-                std::cmp::min(chunk_start + self.chunk_size - 1, file_size.saturating_sub(1));
+            let chunk_end_inclusive = std::cmp::min(
+                chunk_start + self.chunk_size - 1,
+                file_size.saturating_sub(1),
+            );
 
             let data = match self.get_chunk(rom_id, file_name, chunk_idx) {
                 Some(cached) => cached,
@@ -218,7 +220,9 @@ impl Cache {
         if let Ok(entries) = std::fs::read_dir(&self.dir) {
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with(&prefix) || name.starts_with(&format!("{rom_id}:{file_name}")) {
+                    if name.starts_with(prefix)
+                        || name.starts_with(&format!("{rom_id}:{file_name}"))
+                    {
                         std::fs::remove_file(entry.path()).ok();
                     }
                 }

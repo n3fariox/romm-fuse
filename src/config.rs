@@ -5,7 +5,10 @@ use clap::Parser;
 use serde::Deserialize;
 
 #[derive(Parser)]
-#[command(name = "romm-fuse", about = "FUSE filesystem bridging RomM to emulation systems")]
+#[command(
+    name = "romm-fuse",
+    about = "FUSE filesystem bridging RomM to emulation systems"
+)]
 pub struct Args {
     /// Mountpoint directory
     pub mountpoint: Option<PathBuf>,
@@ -95,8 +98,12 @@ impl ConfigFile {
 
             // ~/.config/romm-fuse/config.toml
             if let Some(home) = std::env::var_os("HOME") {
-                candidates.push(PathBuf::from(home)
-                    .join(".config").join("romm-fuse").join("config.toml"));
+                candidates.push(
+                    PathBuf::from(home)
+                        .join(".config")
+                        .join("romm-fuse")
+                        .join("config.toml"),
+                );
             }
 
             // /etc/romm-fuse/config.toml
@@ -139,28 +146,36 @@ impl ResolvedConfig {
     pub fn resolve(args: &Args) -> Result<Self> {
         let config_file = ConfigFile::load(args.config_file.as_deref())?;
 
-        let romm_url = args.romm_url.clone()
-            .or(config_file.romm_url)
-            .or_else(|| {
-                if args.test { None } else { prompt("RomM URL (e.g. http://192.168.1.100:3000): ") }
-            });
+        let romm_url = args.romm_url.clone().or(config_file.romm_url).or_else(|| {
+            if args.test {
+                None
+            } else {
+                prompt("RomM URL (e.g. http://192.168.1.100:3000): ")
+            }
+        });
 
-        let token = args.token.clone()
-            .or(config_file.token)
-            .or_else(|| {
-                if args.test { None } else { prompt("API Token (rmm_...): ") }
-            });
+        let token = args.token.clone().or(config_file.token).or_else(|| {
+            if args.test {
+                None
+            } else {
+                prompt("API Token (rmm_...): ")
+            }
+        });
 
-        let profile = args.profile.clone()
+        let profile = args
+            .profile
+            .clone()
             .or(config_file.profile)
             .unwrap_or_else(|| "mister".to_string());
 
         let mountpoint = args.mountpoint.clone();
 
-        let romm_url = romm_url
-            .ok_or_else(|| anyhow::anyhow!("RomM URL is required (--romm-url, ROMM_URL, or config file)"))?;
-        let token = token
-            .ok_or_else(|| anyhow::anyhow!("API token is required (--token, ROMM_TOKEN, or config file)"))?;
+        let romm_url = romm_url.ok_or_else(|| {
+            anyhow::anyhow!("RomM URL is required (--romm-url, ROMM_URL, or config file)")
+        })?;
+        let token = token.ok_or_else(|| {
+            anyhow::anyhow!("API token is required (--token, ROMM_TOKEN, or config file)")
+        })?;
 
         if !args.test && mountpoint.is_none() {
             anyhow::bail!("mountpoint is required");

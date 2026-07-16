@@ -6,10 +6,9 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::Result;
 use fuser::{
-    AccessFlags, Errno, FileAttr, FileType, Filesystem, FopenFlags, Generation, INodeNo,
-    MountOption, OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
-    ReplyOpen, ReplyStatfs, Request, FileHandle,
-    Config, SessionACL,
+    AccessFlags, Config, Errno, FileAttr, FileHandle, FileType, Filesystem, FopenFlags, Generation,
+    INodeNo, MountOption, OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
+    ReplyOpen, ReplyStatfs, Request, SessionACL,
 };
 use log::{debug, info, warn};
 
@@ -76,10 +75,7 @@ impl RommFs {
                     info!("fetching ROMs for platform '{}'...", platform.slug);
                     let roms = client.list_all_roms(platform.id)?;
                     info!("found {} ROMs for '{}'", roms.len(), platform.slug);
-                    tree.build_from_roms(
-                        &HashMap::from([(platform.slug.clone(), dir_ino)]),
-                        &roms,
-                    );
+                    tree.build_from_roms(&HashMap::from([(platform.slug.clone(), dir_ino)]), &roms);
                 }
             }
         }
@@ -118,7 +114,7 @@ impl RommFs {
                 blksize: BLOCK_SIZE as u32,
             }),
             TreeNode::File { size, .. } => {
-                let blocks = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+                let blocks = size.div_ceil(BLOCK_SIZE);
                 Some(FileAttr {
                     ino: INodeNo(ino),
                     size: *size,
@@ -329,21 +325,18 @@ impl Filesystem for RommFs {
         };
         drop(tree);
 
-        let data = match self.cache.read_range(
-            &self.client,
-            rom_id,
-            &file_name,
-            file_size,
-            offset,
-            size,
-        ) {
-            Ok(d) => d,
-            Err(e) => {
-                warn!("failed to read rom {rom_id} file {file_name}: {e}");
-                reply.error(Errno::EIO);
-                return;
-            }
-        };
+        let data =
+            match self
+                .cache
+                .read_range(&self.client, rom_id, &file_name, file_size, offset, size)
+            {
+                Ok(d) => d,
+                Err(e) => {
+                    warn!("failed to read rom {rom_id} file {file_name}: {e}");
+                    reply.error(Errno::EIO);
+                    return;
+                }
+            };
 
         reply.data(&data);
     }
@@ -381,7 +374,11 @@ pub fn mount(args: crate::config::ResolvedConfig) -> Result<()> {
     let profile = ProfileConfig::load(&args)?;
 
     let client = RommClient::new(&args.romm_url, &args.token)?;
-    let cache = Cache::new(&args.cache_dir, Duration::from_secs(args.ttl), args.chunk_size)?;
+    let cache = Cache::new(
+        &args.cache_dir,
+        Duration::from_secs(args.ttl),
+        args.chunk_size,
+    )?;
     let ttl = Duration::from_secs(args.ttl);
 
     let fs = RommFs::new(client, cache, &profile, ttl)?;
@@ -398,7 +395,10 @@ pub fn mount(args: crate::config::ResolvedConfig) -> Result<()> {
         config.acl = SessionACL::All;
     }
 
-    let mountpoint = args.mountpoint.clone().ok_or_else(|| anyhow::anyhow!("mountpoint is required"))?;
+    let mountpoint = args
+        .mountpoint
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("mountpoint is required"))?;
 
     info!("mounting at {}", mountpoint.display());
     fuser::mount2(fs, &mountpoint, &config)?;

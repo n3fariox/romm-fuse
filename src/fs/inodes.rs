@@ -8,6 +8,12 @@ pub struct InodeTable {
     next: u64,
 }
 
+impl Default for InodeTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InodeTable {
     pub fn new() -> Self {
         let mut table = Self {

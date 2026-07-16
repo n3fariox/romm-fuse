@@ -52,12 +52,7 @@ impl RommClient {
         Ok(platforms)
     }
 
-    pub fn list_roms(
-        &self,
-        platform_id: u64,
-        offset: u64,
-        limit: u64,
-    ) -> Result<Page<SimpleRom>> {
+    pub fn list_roms(&self, platform_id: u64, offset: u64, limit: u64) -> Result<Page<SimpleRom>> {
         let resp = self
             .client
             .get(self.url("/api/roms"))
@@ -102,13 +97,7 @@ impl RommClient {
     }
 
     #[allow(dead_code)]
-    pub fn download_rom_content(
-        &self,
-        rom_id: u64,
-        file_name: &str,
-        dest: &Path,
-    ) -> Result<u64> {
-
+    pub fn download_rom_content(&self, rom_id: u64, file_name: &str, dest: &Path) -> Result<u64> {
         let url = self.url(&format!(
             "/api/roms/{rom_id}/content/{}",
             urlencoding::encode(file_name)

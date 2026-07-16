@@ -28,6 +28,12 @@ pub struct FileTree {
     next_ino: u64,
 }
 
+impl Default for FileTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileTree {
     pub fn new() -> Self {
         let mut tree = Self {
@@ -68,6 +74,7 @@ impl FileTree {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_file(
         &mut self,
         parent: u64,
@@ -119,11 +126,7 @@ impl FileTree {
         }
     }
 
-    pub fn build_from_roms(
-        &mut self,
-        platform_dirs: &HashMap<String, u64>,
-        roms: &[SimpleRom],
-    ) {
+    pub fn build_from_roms(&mut self, platform_dirs: &HashMap<String, u64>, roms: &[SimpleRom]) {
         for rom in roms {
             let dir_ino = match platform_dirs.get(&rom.platform_slug) {
                 Some(&ino) => ino,
